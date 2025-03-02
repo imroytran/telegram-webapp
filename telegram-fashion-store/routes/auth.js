@@ -444,8 +444,5 @@ router.delete('/address/:id', authMiddleware, async (req, res, next) => {
 });
 
 // Экспортируем маршруты и middleware
-module.exports = {
-  router,
-  authMiddleware,
-  adminMiddleware
-};
+// Экспортируем только маршрутизатор
+module.exports = router;
