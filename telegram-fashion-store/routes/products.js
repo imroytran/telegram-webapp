@@ -1,7 +1,9 @@
 // routes/products.js - Маршруты товаров
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, adminMiddleware } = require('./auth');
+const auth = require('./auth');
+const authMiddleware = auth.authMiddleware;
+const adminMiddleware = auth.adminMiddleware;
 const ProductModel = require('../models/product');
 const yadiskService = require('../yadisk-service');
 const multer = require('multer');
