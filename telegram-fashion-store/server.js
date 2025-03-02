@@ -39,12 +39,12 @@ mongoose.connect(config.MONGODB_URI, {
 .catch(err => console.error('Ошибка подключения к MongoDB:', err));
 
 // Маршруты API
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/webhooks', webhookRoutes);
+//app.use('/api/auth', authRoutes);
+//app.use('/api/products', productRoutes);
+//app.use('/api/cart', cartRoutes);
+//app.use('/api/orders', orderRoutes);
+//app.use('/api/admin', adminRoutes);
+//app.use('/api/webhooks', webhookRoutes);
 
 // Статические файлы для фронтенда в продакшн режиме
 if (config.NODE_ENV === 'production') {
