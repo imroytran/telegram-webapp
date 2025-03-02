@@ -1,0 +1,18 @@
+FROM node:16-alpine as build
+
+WORKDIR /app
+
+# Копируем package.json и package-lock.json
+COPY client/package*.json ./
+
+# Устанавливаем зависимости
+RUN npm ci
+
+# Копируем исходный код
+COPY client/ ./
+
+# Собираем проект для production
+RUN npm run build
+
+# Результат сборки будет в /app/build
+# Этот каталог монтируется как volume в docker-compose.yml
