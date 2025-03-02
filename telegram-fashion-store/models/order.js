@@ -209,3 +209,111 @@ OrderSchema.statics.getStatistics = async function(period = 'month') {
     default:
       dateFilter = {};
   }
+  
+  // Получаем общее количество заказов
+  const totalOrders = await this.countDocuments(dateFilter);
+  
+  // Получаем количество заказов по статусам
+  const ordersByStatus = await this.aggregate([
+    { $match: dateFilter },
+    { $group: { _id: '$status', count: { $sum: 1 } } }
+  ]);
+  
+  // Получаем общую сумму заказов
+  const totalRevenue = await this.aggregate([
+    { $match: { ...dateFilter, paymentStatus: 'paid' } },
+    { $group: { _id: null, total: { $sum: '$total' } } }
+  ]);
+  
+  // Получаем популярные товары
+  const popularProducts = await this.aggregate([
+    { $match: dateFilter },
+    { $unwind: '$items' },
+    { $group: { 
+      _id: '$items.product', 
+      title: { $first: '$items.title' },
+      totalQuantity: { $sum: '$items.quantity' },
+      totalRevenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
+    }},
+    { $sort: { totalQuantity: -1 } },
+    { $limit: 5 }
+  ]);
+  
+  // Преобразуем результаты агрегации в более удобный формат
+  const ordersByStatusMap = {};
+  ordersByStatus.forEach(item => {
+    ordersByStatusMap[item._id] = item.count;
+  });
+  
+  return {
+    totalOrders,
+    ordersByStatus: ordersByStatusMap,
+    totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
+    popularProducts,
+    period
+  };
+};
+
+// Метод для создания заказа из корзины
+OrderSchema.statics.createFromCart = async function(cart, orderData) {
+  // Проверяем наличие обязательных данных
+  if (!cart || !orderData || !orderData.address || !orderData.phone) {
+    throw new Error('Недостаточно данных для создания заказа');
+  }
+  
+  // Проверяем, что корзина не пуста
+  if (!cart.items || cart.items.length === 0) {
+    throw new Error('Корзина пуста');
+  }
+  
+  // Обновляем цены и наличие товаров перед созданием заказа
+  const Product = mongoose.model('Product');
+  const orderItems = [];
+  
+  for (const item of cart.items) {
+    const product = await Product.findById(item.product);
+    
+    if (!product) {
+      throw new Error(`Товар с ID ${item.product} не найден`);
+    }
+    
+    if (!product.inStock) {
+      throw new Error(`Товар "${product.title}" отсутствует на складе`);
+    }
+    
+    // Создаем элемент заказа
+    orderItems.push({
+      product: product._id,
+      title: product.title,
+      quantity: item.quantity,
+      price: item.price, // Используем цену из корзины (она уже учитывает скидки)
+      size: item.size,
+      color: item.color
+    });
+  }
+  
+  // Создаем новый заказ
+  const order = new this({
+    telegramId: cart.telegramId,
+    username: cart.username,
+    items: orderItems,
+    total: cart.total,
+    address: orderData.address,
+    phone: orderData.phone,
+    email: orderData.email,
+    deliveryMethod: orderData.deliveryMethod || 'courier',
+    paymentMethod: orderData.paymentMethod || 'online',
+    notes: orderData.notes,
+    promoCode: cart.promoCode
+  });
+  
+  // Сохраняем заказ
+  await order.save();
+  
+  // Очищаем корзину
+  await cart.clear();
+  
+  return order;
+};
+
+module.exports = mongoose.model('Order', OrderSchema);
